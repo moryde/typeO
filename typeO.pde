@@ -44,7 +44,7 @@ void draw() {
   text("Click on the program, and start typing.", 20, 40);
   text("wasd controls the pens position. Press 'r' to print the gcode collected.", 20, 70);
   
-  device.readStringUntil("ok");
+  readOk();
 }
 
 void keyPressed() {
@@ -75,9 +75,12 @@ void sendCommand(String cmd) {
   gcode += withNl;
   device.write(withNl);
   
+  readOk();
+}
+
+void readOk() {
   String readData = device.readStringUntil('\n'); 
-  if (readData.equals("ok")) {
+  if (readData != null && readData.equals("ok")) {
     
   }
-  
 }
