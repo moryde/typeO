@@ -23,10 +23,13 @@ import processing.serial.*;
 // The next line is needed if running in JavaScript Mode with Processing.js
 /* @pjs font="Georgia.ttf"; */
 
+File configFile = dataFile("config.json");
+JSONObject config;
+
 ArrayList<String> gCodeSequence = new ArrayList<String>();
 
 boolean editMode = false;
-String symbolsFileName = "first_font.json"; 
+File symbolsFile = dataFile("first_font.json"); 
 JSONObject symbols;
 
 ControlP5 cp5;
@@ -37,7 +40,36 @@ String[] serialDevices;
 Serial device;
 
 void setup() {
-  symbols = loadJSONObject(symbolsFileName);
+  if (configFile.exists()) {
+    config = new JSONObject(createReader(configFile));
+    println("Got config file");
+    if (config.hasKey("serialDevice")) {
+      String loadedSerial = config.getString("serialDevice");
+      serialDevices = Serial.list();
+      
+      boolean foundDevice = false;
+      for (int i = 0; i < serialDevices.length; i++) {
+        if (loadedSerial.equals(serialDevices[i])) {
+          foundDevice = true;
+        }
+      }
+      
+      if (foundDevice) {
+        // Device still available, lets connect
+        setSerial(loadedSerial);
+        println("Reconnected to last used device: " + loadedSerial);
+      }
+    }
+  } else {
+    config = new JSONObject();
+    println("No existing config file");
+  }
+  
+  if (symbolsFile.exists()) {
+    symbols = new JSONObject(createReader(symbolsFile));  
+  } else {
+    symbols = new JSONObject();
+  }
   
   size(640, 360);
 
@@ -102,8 +134,11 @@ void populateSerialSelect() {
   }
 }
 
-void setSerial(int serialIndex) {
-  device = new Serial(this, serialDevices[serialIndex], 9600);
+void setSerial(String devicePath) {
+  device = new Serial(this, devicePath, 9600);
+  
+  config.setString("serialDevice", devicePath);
+  config.save(configFile, "");
 
   println("Initializing grbl...");
   device.write("\r\n\r\n");
@@ -125,8 +160,7 @@ void controlEvent(ControlEvent event) {
     if (event.getGroup().getName().equals("serialSelect")) {
       // Serial selected
       int serialIndex = int(event.getGroup().getValue());
-      println("Serial selected: " + serialIndex);
-      setSerial(serialIndex);
+      setSerial(serialDevices[serialIndex]);
     }
   }
   else if (event.isController()) {
@@ -175,12 +209,14 @@ void keyPressed() {
         break;
     }
   } else {
-    JSONArray symbolGcode = symbols.getJSONArray("" + key);
-    for (int i = 0; i < symbolGcode.size(); i++) {
-      sendCommand(symbolGcode.getString(i));
+    String jsonKey = "" + key;
+    if (symbols.hasKey(jsonKey)) {
+      JSONArray symbolGcode = symbols.getJSONArray(jsonKey);
+      for (int i = 0; i < symbolGcode.size(); i++) {
+        sendCommand(symbolGcode.getString(i));
+      }  
     }
   }
-
 }
 
 public void input(String keyCommand) {
@@ -193,7 +229,7 @@ public void input(String keyCommand) {
   }
 
   symbols.setJSONArray(keyCommand, commands);
-  saveJSONObject(symbols, symbolsFileName);
+  symbols.save(symbolsFile, "");
 }
 
 void sendCommand(String cmd) {
