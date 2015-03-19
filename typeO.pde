@@ -1,3 +1,5 @@
+import controlP5.*;
+
 import processing.serial.*;
 
 /**
@@ -21,7 +23,12 @@ import processing.serial.*;
 // The next line is needed if running in JavaScript Mode with Processing.js
 /* @pjs font="Georgia.ttf"; */
 
-String gcode = "";
+ArrayList<String> gCodeSequence = new ArrayList<String>();
+
+ControlP5 cp5;
+
+JSONObject json;
+JSONObject letters = new JSONObject();
 
 char letter;
 String val;
@@ -33,8 +40,26 @@ void setup() {
   // Create the font
   textFont(createFont("Georgia", 36));
   println(Serial.list());
-  String portName = Serial.list()[0];
+  String portName = Serial.list()[7];
   device = new Serial(this, portName, 9600); 
+
+  noStroke();
+  cp5 = new ControlP5(this);
+  
+  // create a new button with name 'buttonA'
+  cp5.addButton("SELECT")
+     .setValue(0)
+     .setPosition(100,100)
+     .setSize(200,19)
+     ;
+
+   cp5.addTextfield("input")
+     .setPosition(20,100)
+     .setSize(200,40)
+     .setFocus(true)
+     .setColor(color(255,0,0))
+     ;
+
 }
 
 void draw() {
@@ -44,38 +69,57 @@ void draw() {
   text("Click on the program, and start typing.", 20, 40);
   text("wasd controls the pens position. Press 'r' to print the gcode collected.", 20, 70);
   
-  readOk();
 }
 
 void keyPressed() {
   // The variable "key" always contains the value 
   // of the most recent key pressed.
+  float distance = 1.0;
   switch(key) {
     case 'w':
-      sendCommand("G01 Y10");
+      sendCommand("G01 Y" + distance);
       break;
     case 'a':
-      sendCommand("G01 X-10");
+      sendCommand("G01 X-" + distance);
       break;
     case 's':
-      sendCommand("G01 Y-10");
+      sendCommand("G01 Y-" + distance);
       break;
     case 'd':
-      sendCommand("G01 X10");
+      sendCommand("G01 X" + distance);
       break;
     case 'r':
-      println(gcode);
-      gcode = "";
+      println(gCodeSequence);
+      gCodeSequence = null;
+      break;
+    case 'h':
+      sendCommand("G91");
       break;
   }
 }
 
+public void colorA(int theValue) {
+  
+}
+
+public void input(String keyCommand) {
+  //TODOO OVERRIDES DATA EVERYTIME
+  // Set commands to specific key
+  JSONArray commands = new JSONArray();
+  
+  for (int i = 0; i < gCodeSequence.size(); i++) {
+    JSONObject command = new JSONObject();
+    commands.setString(i, gCodeSequence.get(i));
+  }
+  letters.setString("command", keyCommand);
+  letters.setJSONArray("gcode", commands);
+  saveJSONObject(letters, "data/first_font.json");
+}
+
 void sendCommand(String cmd) {
   String withNl = cmd + '\n';
-  gcode += withNl;
   device.write(withNl);
-  
-  readOk();
+  gCodeSequence.add(withNl);
 }
 
 void readOk() {
