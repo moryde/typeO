@@ -32,10 +32,12 @@ boolean isRecording = false;
 boolean editMode = false;
 boolean saveInSprites = false;
 String keyCommand;
-File fontFile = dataFile("first_font.json");
+File fontFile = dataFile("second_font.json");
 File spriteFile = dataFile("sprites.json");
 JSONObject charecters;
 JSONObject sprites;
+
+float distance = 1.0;
 
 ControlP5 cp5;
 
@@ -46,7 +48,7 @@ Toggle edit;
 DropdownList serialDL;
 String[] serialDevices;
 
-Serial device;
+Serial gcodeMachine;
 
 void setup() {
   if (configFile.exists()) {
@@ -82,12 +84,12 @@ void setup() {
     sprites = new JSONObject(createReader(spriteFile));
     println(sprites);
   } else {
-        println("!Sprites");
+    println("!Sprites");
 
     sprites = new JSONObject();
   }
-  
-  
+
+
 
   size(640, 360);
 
@@ -97,7 +99,10 @@ void setup() {
   cp5 = new ControlP5(this);
   int labels = color(0);
   
-  
+  Button gridSize1 = cp5.addButton("gridSize1");
+    gridSize1.setPosition(200, 200);
+
+
   Button serialRefresh = cp5.addButton("serialRefresh");
   serialRefresh.setPosition(20, 20);
   serialRefresh.setWidth(100);
@@ -123,7 +128,7 @@ void setup() {
   edit.captionLabel().set("Typewriter mode");
   edit.setValue(editMode);
   edit.setMode(ControlP5.SWITCH);
-  
+
   record = cp5.addButton("record");
   record.setPosition(20, 60);
   record.setSize(50, 20);
@@ -132,33 +137,38 @@ void setup() {
 
   cp5.addTextfield("drawSprite")
     .setPosition(225, 100)
-      .setSize(200,20)
+      .setSize(200, 20)
         .setFocus(true)
           .setColor(color(255, 0, 0))
             .setCaptionLabel("Sprite to play");
-            ;
+  ;
 
 
   cp5.addTextfield("keyToSave")
     .setPosition(20, 100)
-    .setSize(200,20)
-    .setFocus(true)
-    .setColor(color(255, 0, 0))
-    .setCaptionLabel("Key to record");
-    ;
-            
+      .setSize(200, 20)
+        .setFocus(true)
+          .setColor(color(255, 0, 0))
+            .setCaptionLabel("Key to record");
+  ;
+
   cp5.addTextfield("lettersToSend")
     .setPosition(430, 100)
-    .setSize(200,20)
-    .setColor(color(255, 0, 0))
-    .setFont(createFont("arial",12))
-    .setCaptionLabel("Letters to write...");
-    ;
+      .setSize(200, 20)
+        .setColor(color(255, 0, 0))
+          .setFont(createFont("arial", 12))
+            .setCaptionLabel("Letters to write...");
+  ;
+
+  cp5.addSlider("changeGridSize")
+    .setPosition(300, 80)
+      .setValue(10)
+      .setRange(0, 30)
+        ;
 }
 
 void draw() {
   background(0); // Set background to black
-  // Draw the letter to the center of the screen
 }
 
 void populateSerialSelect() {
@@ -170,16 +180,16 @@ void populateSerialSelect() {
 }
 
 void setSerial(String devicePath) {
-  device = new Serial(this, devicePath, 9600);
+  gcodeMachine = new Serial(this, devicePath, 115200);
 
   config.setString("serialDevice", devicePath);
   config.save(configFile, "");
 
   println("Initializing grbl...");
-  device.write("\r\n\r\n");
+  gcodeMachine.write("\r\n\r\n");
   delay(2000);
   sendCommand("G91");
-  device.clear();
+  gcodeMachine.clear();
 }
 
 void controlEvent(ControlEvent event) {
@@ -195,8 +205,8 @@ void controlEvent(ControlEvent event) {
 
     if (event.getGroup().getName().equals("serialSelect")) {
       // Serial selected
-      int serialIndex = int(event.getGroup().getValue());
-      setSerial(serialDevices[serialIndex]);
+      //int serialIndex = int(event.getGroup().getValue());
+      //setSerial(serialDevices[serialIndex]);
     }
   } else if (event.isController()) {
     println("event from controller : "+event.getController().getValue()+" from "+event.getController());
@@ -209,13 +219,13 @@ void controlEvent(ControlEvent event) {
       float value = event.getController().getValue();
       if (value == 0.0) {
         editMode = false;
-          edit.captionLabel().set("Typewriter mode");
+        edit.captionLabel().set("Typewriter mode");
       } else {
         editMode = true;
         edit.captionLabel().set("Editor mode");
       }
     }
-    
+
     if (event.getController().getName().equals("record")) {
       if (isRecording) {
         endRecording();
@@ -229,7 +239,6 @@ void controlEvent(ControlEvent event) {
 void keyPressed() {
   // The variable "key" always contains the value
   // of the most recent key pressed.
-  float distance = 1.0;
 
   if (editMode) {
     switch(key) {
@@ -245,8 +254,37 @@ void keyPressed() {
     case 'd':
       sendCommand("G01 X" + distance);
       break;
+
+    case 'r':
+      sendCommand("G01 Y" + distance/2 + " X" + -distance/2);
+      break;
+    case 't':
+      sendCommand("G01 Y" + distance/2 + " X" + distance/2);
+      break;
+    case 'f':
+      sendCommand("G01 Y" + -distance/2 + " X" + -distance/2);
+      break;
+    case 'g':
+      sendCommand("G01 Y" + -distance/2 + " X" + distance/2);
+      break;
+
+
+    case 'y':
+      sendCommand("G02 X2 Y0 R2");
+      break;
+    case 'u':
+      sendCommand("G01 Y" + distance/2 + " X" + distance/2);
+      break;
     case 'h':
-      sendCommand("G91");
+      sendCommand("G01 Y" + -distance/2 + " X" + -distance/2);
+      break;
+    case 'j':
+      sendCommand("G01 Y" + -distance/2 + " X" + distance/2);
+      break;
+
+    case 'o':
+      //should not be needed anymore, but just in case.
+      sendCommand("G9www1");
       break;
     }
   } else {
@@ -263,44 +301,46 @@ void keyPressed() {
 public void lettersToSend(String keyCommandos) {
 }
 
+public void changeGridSize(float keyCommandos) {
+  distance = keyCommandos;
+}
+
 public void keyToSave(String keyCommandos) {
   if (keyCommandos.length() == 1) {
-    saveInSprites = false;   
+    saveInSprites = false;
   } else {
     saveInSprites = true;
   }
-  
   keyCommand = keyCommandos;
   startRecording();
 }
 
 public void drawSprite(String spriteName) {
   // Set commands to specific key
-    if (sprites.hasKey(spriteName)) {
-      JSONArray symbolGcode = sprites.getJSONArray(spriteName);
-      for (int i = 0; i < symbolGcode.size (); i++) {
-        sendCommand(symbolGcode.getString(i));
-      }
+  if (sprites.hasKey(spriteName)) {
+    JSONArray symbolGcode = sprites.getJSONArray(spriteName);
+    for (int i = 0; i < symbolGcode.size (); i++) {
+      sendCommand(symbolGcode.getString(i));
     }
-
+  }
 }
 
 void endRecording() {
   println("Ended recording");
   isRecording = false;
-  record.setColorBackground(color(255,100,0));
+  record.setColorBackground(color(255, 100, 0));
   record.captionLabel().set("Start recording");
   JSONArray commands = new JSONArray();
-    for (int i = 0; i < gCodeSequence.size (); i++) {
-      commands.append(gCodeSequence.get(i));
-    }
-  
+  for (int i = 0; i < gCodeSequence.size (); i++) {
+    commands.append(gCodeSequence.get(i));
+  }
+
   if (saveInSprites) {
-  sprites.setJSONArray(keyCommand, commands);
-  sprites.save(spriteFile, "");
+    sprites.setJSONArray(keyCommand, commands);
+    sprites.save(spriteFile, "");
   } else {
-  charecters.setJSONArray(keyCommand, commands);
-  charecters.save(spriteFile, "");
+    charecters.setJSONArray(keyCommand, commands);
+    charecters.save(fontFile, "");
   }
 }
 
@@ -308,26 +348,29 @@ void startRecording() {
   isRecording = true;
   gCodeSequence.clear();
   println("isRecording now");
-  record.setColorBackground(color(255,0,0));
+  record.setColorBackground(color(255, 0, 0));
   record.captionLabel().set("Recording...");
 }
 
 void sendCommand(String cmd) {
   String withNl = cmd + '\n';
-  device.write(withNl);
+  gcodeMachine.write(withNl);
+  println(withNl);
   readOk();
   if (isRecording) {
-  gCodeSequence.add(withNl);
+    gCodeSequence.add(withNl);
   };
 }
 
 void readOk() {
-  String readData = device.readStringUntil('\n');
+  delay(100);
+  String readData = gcodeMachine.readStringUntil('\n');
+  
   println(readData);
-  if (readData != null && readData.equals("ok")) {
+  if (readData != null && readData == "ok") {
     println("recieved ok");
   } else {
-    println("Other than OK" + readData); 
+    println("Other than OK" + readData);
   }
 }
 
