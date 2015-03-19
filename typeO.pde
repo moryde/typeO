@@ -25,9 +25,8 @@ import processing.serial.*;
 
 ArrayList<String> gCodeSequence = new ArrayList<String>();
 
-String symbolsFileName = "data/first_font.json"; 
-
-JSONObject symbols = new JSONObject();
+String symbolsFileName = "first_font.json"; 
+JSONObject symbols;
 
 ControlP5 cp5;
 
@@ -37,6 +36,8 @@ String[] serialDevices;
 Serial device;
 
 void setup() {
+  symbols = loadJSONObject(symbolsFileName);
+  
   size(640, 360);
 
   textFont(createFont("Georgia", 36));
