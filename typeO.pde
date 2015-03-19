@@ -28,11 +28,17 @@ JSONObject config;
 
 ArrayList<String> gCodeSequence = new ArrayList<String>();
 
+boolean isRecording = false;
 boolean editMode = false;
+String keyCommand;
 File symbolsFile = dataFile("first_font.json"); 
 JSONObject symbols;
 
 ControlP5 cp5;
+
+
+Button record;
+Toggle edit;
 
 DropdownList serialDL;
 String[] serialDevices;
@@ -46,14 +52,14 @@ void setup() {
     if (config.hasKey("serialDevice")) {
       String loadedSerial = config.getString("serialDevice");
       serialDevices = Serial.list();
-      
+
       boolean foundDevice = false;
       for (int i = 0; i < serialDevices.length; i++) {
         if (loadedSerial.equals(serialDevices[i])) {
           foundDevice = true;
         }
       }
-      
+
       if (foundDevice) {
         // Device still available, lets connect
         setSerial(loadedSerial);
@@ -64,20 +70,22 @@ void setup() {
     config = new JSONObject();
     println("No existing config file");
   }
-  
   if (symbolsFile.exists()) {
-    symbols = new JSONObject(createReader(symbolsFile));  
+    symbols = new JSONObject(createReader(symbolsFile));
+    println(symbols);
   } else {
     symbols = new JSONObject();
   }
-  
+
   size(640, 360);
 
   textFont(createFont("Georgia", 36));
   textSize(14);
 
   cp5 = new ControlP5(this);
-
+  int labels = color(0);
+  
+  
   Button serialRefresh = cp5.addButton("serialRefresh");
   serialRefresh.setPosition(20, 20);
   serialRefresh.setWidth(100);
@@ -96,34 +104,32 @@ void setup() {
   serialDL.setColorBackground(color(60));
   serialDL.setColorActive(color(255, 128));
   populateSerialSelect();
-  
-  Toggle edit = cp5.addToggle("toggleEdit");
-  edit.setPosition(580, 100);
-  edit.setSize(50, 20);
-  edit.captionLabel().set("Toggle edit");
+
+  edit = cp5.addToggle("toggleEdit");
+  edit.setPosition(20, 150);
+  edit.setSize(100, 20);
+  edit.captionLabel().set("Typewriter mode");
   edit.setValue(editMode);
   edit.setMode(ControlP5.SWITCH);
+  
+  record = cp5.addButton("record");
+  record.setPosition(20, 60);
+  record.setSize(50, 20);
+  record.setWidth(100);
+  record.captionLabel().set("Record");
 
-  cp5.addButton("SELECT")
-     .setValue(0)
-     .setPosition(100,100)
-     .setSize(200,19)
-     ;
-
-   cp5.addTextfield("input")
-     .setPosition(20,100)
-     .setSize(200,40)
-     .setFocus(true)
-     .setColor(color(255,0,0))
-     ;
+  cp5.addTextfield("input")
+    .setPosition(20, 100)
+      .setSize(200,20)
+        .setFocus(true)
+          .setColor(color(255, 0, 0))
+            .setCaptionLabel("Key to record");
+            ;
 }
 
 void draw() {
   background(0); // Set background to black
   // Draw the letter to the center of the screen
-
-  text("Click on the program, and start typing.", 20, 70);
-  text("wasd controls the pens position. Press 'r' to print the gcode collected.", 20, 90);
 }
 
 void populateSerialSelect() {
@@ -136,7 +142,7 @@ void populateSerialSelect() {
 
 void setSerial(String devicePath) {
   device = new Serial(this, devicePath, 9600);
-  
+
   config.setString("serialDevice", devicePath);
   config.save(configFile, "");
 
@@ -162,20 +168,29 @@ void controlEvent(ControlEvent event) {
       int serialIndex = int(event.getGroup().getValue());
       setSerial(serialDevices[serialIndex]);
     }
-  }
-  else if (event.isController()) {
+  } else if (event.isController()) {
     println("event from controller : "+event.getController().getValue()+" from "+event.getController());
 
     if (event.getController().getName().equals("serialRefresh")) {
       populateSerialSelect();
     }
-    
+
     if (event.getController().getName().equals("toggleEdit")) {
       float value = event.getController().getValue();
       if (value == 0.0) {
         editMode = false;
+          edit.captionLabel().set("Typewriter mode");
       } else {
         editMode = true;
+        edit.captionLabel().set("Editor mode");
+      }
+    }
+    
+    if (event.getController().getName().equals("record")) {
+      if (isRecording) {
+        endRecording();
+      } else {
+        startRecording();
       }
     }
   }
@@ -185,62 +200,79 @@ void keyPressed() {
   // The variable "key" always contains the value
   // of the most recent key pressed.
   float distance = 1.0;
-  
+
   if (editMode) {
     switch(key) {
-      case 'w':
-        sendCommand("G01 Y" + distance);
-        break;
-      case 'a':
-        sendCommand("G01 X-" + distance);
-        break;
-      case 's':
-        sendCommand("G01 Y-" + distance);
-        break;
-      case 'd':
-        sendCommand("G01 X" + distance);
-        break;
-      case 'r':
-        println(gCodeSequence);
-        gCodeSequence = null;
-        break;
-      case 'h':
-        sendCommand("G91");
-        break;
+    case 'w':
+      sendCommand("G01 Y" + distance);
+      break;
+    case 'a':
+      sendCommand("G01 X-" + distance);
+      break;
+    case 's':
+      sendCommand("G01 Y-" + distance);
+      break;
+    case 'd':
+      sendCommand("G01 X" + distance);
+      break;
+    case 'h':
+      sendCommand("G91");
+      break;
     }
   } else {
     String jsonKey = "" + key;
     if (symbols.hasKey(jsonKey)) {
       JSONArray symbolGcode = symbols.getJSONArray(jsonKey);
-      for (int i = 0; i < symbolGcode.size(); i++) {
+      for (int i = 0; i < symbolGcode.size (); i++) {
         sendCommand(symbolGcode.getString(i));
-      }  
+      }
     }
   }
 }
 
-public void input(String keyCommand) {
-  //TODOO OVERRIDES DATA EVERYTIME
+public void input(String keyCommandos) {
   // Set commands to specific key
+  keyCommand = keyCommandos;
+  startRecording();
+}
+
+void endRecording() {
+  println("Ended recording");
+  isRecording = false;
+  record.setColorBackground(color(255,100,0));
+  record.captionLabel().set("Start recording");
   JSONArray commands = new JSONArray();
-
-  for (int i = 0; i < gCodeSequence.size(); i++) {
-    commands.append(gCodeSequence.get(i));
-  }
-
+    for (int i = 0; i < gCodeSequence.size (); i++) {
+      commands.append(gCodeSequence.get(i));
+    }
   symbols.setJSONArray(keyCommand, commands);
-  symbols.save(symbolsFile, "");
+  symbols.save(symbolsFile, ""); 
+}
+
+void startRecording() {
+  isRecording = true;
+  gCodeSequence.clear();
+  println("isRecording now");
+  record.setColorBackground(color(255,0,0));
+  record.captionLabel().set("Recording...");
 }
 
 void sendCommand(String cmd) {
   String withNl = cmd + '\n';
   device.write(withNl);
+  readOk();
+  if (isRecording) {
   gCodeSequence.add(withNl);
+  };
 }
 
 void readOk() {
   String readData = device.readStringUntil('\n');
+  println(readData);
   if (readData != null && readData.equals("ok")) {
-
+    println("recieved ok");
+  } else {
+    println("Other than OK" + readData); 
   }
 }
+
