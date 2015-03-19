@@ -6,9 +6,9 @@ import processing.serial.*;
  * Characters Strings.
  *
  * The character datatype, abbreviated as char, stores letters and
- * symbols in the Unicode format, a coding system developed to support
+ * charecters in the Unicode format, a coding system developed to support
  * a variety of world languages. Characters are distinguished from other
- * symbols by putting them between single quotes ('P').<br />
+ * charecters by putting them between single quotes ('P').<br />
  * <br />
  * A string is a sequence of characters. A string is noted by surrounding
  * a group of letters with double quotes ("Processing").
@@ -30,9 +30,12 @@ ArrayList<String> gCodeSequence = new ArrayList<String>();
 
 boolean isRecording = false;
 boolean editMode = false;
+boolean saveInSprites = false;
 String keyCommand;
-File symbolsFile = dataFile("first_font.json"); 
-JSONObject symbols;
+File fontFile = dataFile("first_font.json");
+File spriteFile = dataFile("sprites.json");
+JSONObject charecters;
+JSONObject sprites;
 
 ControlP5 cp5;
 
@@ -70,12 +73,21 @@ void setup() {
     config = new JSONObject();
     println("No existing config file");
   }
-  if (symbolsFile.exists()) {
-    symbols = new JSONObject(createReader(symbolsFile));
-    println(symbols);
+  if (fontFile.exists()) {
+    charecters = new JSONObject(createReader(fontFile));
   } else {
-    symbols = new JSONObject();
+    charecters = new JSONObject();
   }
+  if (spriteFile.exists()) {
+    sprites = new JSONObject(createReader(spriteFile));
+    println(sprites);
+  } else {
+        println("!Sprites");
+
+    sprites = new JSONObject();
+  }
+  
+  
 
   size(640, 360);
 
@@ -106,7 +118,7 @@ void setup() {
   populateSerialSelect();
 
   edit = cp5.addToggle("toggleEdit");
-  edit.setPosition(20, 150);
+  edit.setPosition(130, 60);
   edit.setSize(100, 20);
   edit.captionLabel().set("Typewriter mode");
   edit.setValue(editMode);
@@ -118,13 +130,30 @@ void setup() {
   record.setWidth(100);
   record.captionLabel().set("Record");
 
-  cp5.addTextfield("input")
-    .setPosition(20, 100)
+  cp5.addTextfield("drawSprite")
+    .setPosition(225, 100)
       .setSize(200,20)
         .setFocus(true)
           .setColor(color(255, 0, 0))
-            .setCaptionLabel("Key to record");
+            .setCaptionLabel("Sprite to play");
             ;
+
+
+  cp5.addTextfield("keyToSave")
+    .setPosition(20, 100)
+    .setSize(200,20)
+    .setFocus(true)
+    .setColor(color(255, 0, 0))
+    .setCaptionLabel("Key to record");
+    ;
+            
+  cp5.addTextfield("lettersToSend")
+    .setPosition(430, 100)
+    .setSize(200,20)
+    .setColor(color(255, 0, 0))
+    .setFont(createFont("arial",12))
+    .setCaptionLabel("Letters to write...");
+    ;
 }
 
 void draw() {
@@ -149,6 +178,7 @@ void setSerial(String devicePath) {
   println("Initializing grbl...");
   device.write("\r\n\r\n");
   delay(2000);
+  sendCommand("G91");
   device.clear();
 }
 
@@ -221,8 +251,8 @@ void keyPressed() {
     }
   } else {
     String jsonKey = "" + key;
-    if (symbols.hasKey(jsonKey)) {
-      JSONArray symbolGcode = symbols.getJSONArray(jsonKey);
+    if (charecters.hasKey(jsonKey)) {
+      JSONArray symbolGcode = charecters.getJSONArray(jsonKey);
       for (int i = 0; i < symbolGcode.size (); i++) {
         sendCommand(symbolGcode.getString(i));
       }
@@ -230,10 +260,29 @@ void keyPressed() {
   }
 }
 
-public void input(String keyCommandos) {
-  // Set commands to specific key
+public void lettersToSend(String keyCommandos) {
+}
+
+public void keyToSave(String keyCommandos) {
+  if (keyCommandos.length() == 1) {
+    saveInSprites = false;   
+  } else {
+    saveInSprites = true;
+  }
+  
   keyCommand = keyCommandos;
   startRecording();
+}
+
+public void drawSprite(String spriteName) {
+  // Set commands to specific key
+    if (sprites.hasKey(spriteName)) {
+      JSONArray symbolGcode = sprites.getJSONArray(spriteName);
+      for (int i = 0; i < symbolGcode.size (); i++) {
+        sendCommand(symbolGcode.getString(i));
+      }
+    }
+
 }
 
 void endRecording() {
@@ -245,8 +294,14 @@ void endRecording() {
     for (int i = 0; i < gCodeSequence.size (); i++) {
       commands.append(gCodeSequence.get(i));
     }
-  symbols.setJSONArray(keyCommand, commands);
-  symbols.save(symbolsFile, ""); 
+  
+  if (saveInSprites) {
+  sprites.setJSONArray(keyCommand, commands);
+  sprites.save(spriteFile, "");
+  } else {
+  charecters.setJSONArray(keyCommand, commands);
+  charecters.save(spriteFile, "");
+  }
 }
 
 void startRecording() {
