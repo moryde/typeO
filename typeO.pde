@@ -27,7 +27,7 @@ ArrayList<String> gCodeSequence = new ArrayList<String>();
 
 String symbolsFileName = "data/first_font.json"; 
 
-JSONObject symbols = loadJSONObject(symbolsFileName);
+JSONObject symbols = new JSONObject();
 
 ControlP5 cp5;
 
