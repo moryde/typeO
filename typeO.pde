@@ -268,7 +268,6 @@ void keyPressed() {
       sendCommand("G01 Y" + -distance/2 + " X" + distance/2);
       break;
 
-
     case 'y':
       sendCommand("G02 X2 Y0 R2");
       break;
@@ -284,7 +283,7 @@ void keyPressed() {
 
     case 'o':
       //should not be needed anymore, but just in case.
-      sendCommand("G9www1");
+      sendCommand("G91");
       break;
     }
   } else {
