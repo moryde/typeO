@@ -25,6 +25,7 @@ import processing.serial.*;
 
 ArrayList<String> gCodeSequence = new ArrayList<String>();
 
+boolean editMode = false;
 String symbolsFileName = "first_font.json"; 
 JSONObject symbols;
 
@@ -62,8 +63,14 @@ void setup() {
   serialDL.valueLabel().style().marginTop = 3;
   serialDL.setColorBackground(color(60));
   serialDL.setColorActive(color(255, 128));
-
   populateSerialSelect();
+  
+  Toggle edit = cp5.addToggle("toggleEdit");
+  edit.setPosition(580, 100);
+  edit.setSize(50, 20);
+  edit.captionLabel().set("Toggle edit");
+  edit.setValue(editMode);
+  edit.setMode(ControlP5.SWITCH);
 
   cp5.addButton("SELECT")
      .setValue(0)
@@ -104,29 +111,38 @@ void setSerial(int serialIndex) {
   device.clear();
 }
 
-void controlEvent(ControlEvent theEvent) {
+void controlEvent(ControlEvent event) {
   // DropdownList is of type ControlGroup.
   // A controlEvent will be triggered from inside the ControlGroup class.
   // therefore you need to check the originator of the Event with
-  // if (theEvent.isGroup())
+  // if (event.isGroup())
   // to avoid an error message thrown by controlP5.
 
-  if (theEvent.isGroup()) {
+  if (event.isGroup()) {
     // check if the Event was triggered from a ControlGroup
-    println("event from group : "+theEvent.getGroup().getValue()+" from "+theEvent.getGroup());
+    println("event from group : "+event.getGroup().getValue()+" from "+event.getGroup());
 
-    if (theEvent.getGroup().getName().equals("serialSelect")) {
+    if (event.getGroup().getName().equals("serialSelect")) {
       // Serial selected
-      int serialIndex = int(theEvent.getGroup().getValue());
+      int serialIndex = int(event.getGroup().getValue());
       println("Serial selected: " + serialIndex);
       setSerial(serialIndex);
     }
   }
-  else if (theEvent.isController()) {
-    println("event from controller : "+theEvent.getController().getValue()+" from "+theEvent.getController());
+  else if (event.isController()) {
+    println("event from controller : "+event.getController().getValue()+" from "+event.getController());
 
-    if (theEvent.getController().getName().equals("serialRefresh")) {
-      println("Button");
+    if (event.getController().getName().equals("serialRefresh")) {
+      populateSerialSelect();
+    }
+    
+    if (event.getController().getName().equals("toggleEdit")) {
+      float value = event.getController().getValue();
+      if (value == 0.0) {
+        editMode = false;
+      } else {
+        editMode = true;
+      }
     }
   }
 }
@@ -135,27 +151,36 @@ void keyPressed() {
   // The variable "key" always contains the value
   // of the most recent key pressed.
   float distance = 1.0;
-  switch(key) {
-    case 'w':
-      sendCommand("G01 Y" + distance);
-      break;
-    case 'a':
-      sendCommand("G01 X-" + distance);
-      break;
-    case 's':
-      sendCommand("G01 Y-" + distance);
-      break;
-    case 'd':
-      sendCommand("G01 X" + distance);
-      break;
-    case 'r':
-      println(gCodeSequence);
-      gCodeSequence = null;
-      break;
-    case 'h':
-      sendCommand("G91");
-      break;
+  
+  if (editMode) {
+    switch(key) {
+      case 'w':
+        sendCommand("G01 Y" + distance);
+        break;
+      case 'a':
+        sendCommand("G01 X-" + distance);
+        break;
+      case 's':
+        sendCommand("G01 Y-" + distance);
+        break;
+      case 'd':
+        sendCommand("G01 X" + distance);
+        break;
+      case 'r':
+        println(gCodeSequence);
+        gCodeSequence = null;
+        break;
+      case 'h':
+        sendCommand("G91");
+        break;
+    }
+  } else {
+    JSONArray symbolGcode = symbols.getJSONArray(key);
+    for (int i = 0; i < symbolGcode.size(); i++) {
+      sendCommand(symbolGcode.getString(i));
+    }
   }
+
 }
 
 public void input(String keyCommand) {
