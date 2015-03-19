@@ -25,8 +25,9 @@ import processing.serial.*;
 
 ArrayList<String> gCodeSequence = new ArrayList<String>();
 
-JSONObject json;
-JSONObject letters = new JSONObject();
+String symbolsFileName = "data/first_font.json"; 
+
+JSONObject symbols = loadJSONObject(symbolsFileName);
 
 ControlP5 cp5;
 
@@ -162,12 +163,11 @@ public void input(String keyCommand) {
   JSONArray commands = new JSONArray();
 
   for (int i = 0; i < gCodeSequence.size(); i++) {
-    JSONObject command = new JSONObject();
-    commands.setString(i, gCodeSequence.get(i));
+    commands.append(gCodeSequence.get(i));
   }
-  letters.setString("command", keyCommand);
-  letters.setJSONArray("gcode", commands);
-  saveJSONObject(letters, "data/first_font.json");
+
+  symbols.setJSONArray(keyCommand, commands);
+  saveJSONObject(symbols, symbolsFileName);
 }
 
 void sendCommand(String cmd) {
