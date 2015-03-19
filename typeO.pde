@@ -175,7 +175,7 @@ void keyPressed() {
         break;
     }
   } else {
-    JSONArray symbolGcode = symbols.getJSONArray(key);
+    JSONArray symbolGcode = symbols.getJSONArray("" + key);
     for (int i = 0; i < symbolGcode.size(); i++) {
       sendCommand(symbolGcode.getString(i));
     }
