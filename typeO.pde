@@ -1,27 +1,10 @@
 import controlP5.*;
 
 import processing.serial.*;
+import geomerative.*;
 
-/**
- * Characters Strings.
- *
- * The character datatype, abbreviated as char, stores letters and
- * charecters in the Unicode format, a coding system developed to support
- * a variety of world languages. Characters are distinguished from other
- * charecters by putting them between single quotes ('P').<br />
- * <br />
- * A string is a sequence of characters. A string is noted by surrounding
- * a group of letters with double quotes ("Processing").
- * Chars and strings are most often used with the keyboard methods,
- * to display text to the screen, and to load images or files.<br />
- * <br />
- * The String datatype must be capitalized because it is a complex datatype.
- * A String is actually a class with its own methods, some of which are
- * featured below.
- */
-
-// The next line is needed if running in JavaScript Mode with Processing.js
-/* @pjs font="Georgia.ttf"; */
+RShape shp;
+RShape polyshp;
 
 File configFile = dataFile("config.json");
 JSONObject config;
@@ -32,7 +15,7 @@ boolean isRecording = false;
 boolean editMode = false;
 boolean saveInSprites = false;
 String keyCommand;
-File fontFile = dataFile("second_font.json");
+File fontFile = dataFile("third_font.json");
 File spriteFile = dataFile("sprites.json");
 JSONObject charecters;
 JSONObject sprites;
@@ -40,10 +23,10 @@ JSONObject sprites;
 float distance = 1.0;
 
 ControlP5 cp5;
-
-
+RSVG svg;
 Button record;
 Toggle edit;
+Textfield lettersToSend;
 
 DropdownList serialDL;
 String[] serialDevices;
@@ -51,6 +34,13 @@ String[] serialDevices;
 Serial gcodeMachine;
 
 void setup() {
+  
+    size(1000,1000);
+    frameRate( 5 );    
+    RG.init(this);
+    
+    shp = RG.loadShape("ad_both.svg");
+  
   if (configFile.exists()) {
     config = new JSONObject(createReader(configFile));
     println("Got config file");
@@ -67,7 +57,7 @@ void setup() {
 
       if (foundDevice) {
         // Device still available, lets connect
-        setSerial(loadedSerial);
+        //setSerial(loadedSerial);
         println("Reconnected to last used device: " + loadedSerial);
       }
     }
@@ -91,7 +81,6 @@ void setup() {
 
 
 
-  size(640, 360);
 
   textFont(createFont("Georgia", 36));
   textSize(14);
@@ -99,7 +88,7 @@ void setup() {
   cp5 = new ControlP5(this);
   int labels = color(0);
   
-  Button gridSize1 = cp5.addButton("gridSize1");
+  Button gridSize1 = cp5.addButton("debugInfo");
     gridSize1.setPosition(200, 200);
 
 
@@ -152,7 +141,7 @@ void setup() {
             .setCaptionLabel("Key to record");
   ;
 
-  cp5.addTextfield("lettersToSend")
+  lettersToSend = cp5.addTextfield("lettersToSend")
     .setPosition(430, 100)
       .setSize(200, 20)
         .setColor(color(255, 0, 0))
@@ -169,6 +158,26 @@ void setup() {
 
 void draw() {
   background(0); // Set background to black
+
+    background(255);
+
+  // We decided the separation between the polygon points dependent of the mouseX
+  float pointSeparation = map(constrain(mouseX, 100, width-100), 100, width-100, 5, 200);
+
+  // We create the polygonized version
+  RG.setPolygonizer(RG.UNIFORMLENGTH);
+  RG.setPolygonizerLength(pointSeparation);
+
+  polyshp = RG.polygonize(shp);
+  polyshp.scale(0.1);
+  // We move ourselves to the mouse position
+  translate(mouseX, mouseY);
+
+  // We draw the polygonized group with the SVG styles
+  RG.shape(polyshp);
+  
+  
+
 }
 
 void populateSerialSelect() {
@@ -205,8 +214,8 @@ void controlEvent(ControlEvent event) {
 
     if (event.getGroup().getName().equals("serialSelect")) {
       // Serial selected
-      //int serialIndex = int(event.getGroup().getValue());
-      //setSerial(serialDevices[serialIndex]);
+      int serialIndex = int(event.getGroup().getValue());
+      setSerial(serialDevices[serialIndex]);
     }
   } else if (event.isController()) {
     println("event from controller : "+event.getController().getValue()+" from "+event.getController());
@@ -236,9 +245,11 @@ void controlEvent(ControlEvent event) {
   }
 }
 
+
 void keyPressed() {
   // The variable "key" always contains the value
   // of the most recent key pressed.
+  println(lettersToSend.isFocus());
 
   if (editMode) {
     switch(key) {
@@ -255,36 +266,50 @@ void keyPressed() {
       sendCommand("G01 X" + distance);
       break;
 
-    case 'r':
+    case 'q':
       sendCommand("G01 Y" + distance/2 + " X" + -distance/2);
       break;
-    case 't':
+    case 'e':
       sendCommand("G01 Y" + distance/2 + " X" + distance/2);
       break;
-    case 'f':
+    case 'z':
       sendCommand("G01 Y" + -distance/2 + " X" + -distance/2);
       break;
-    case 'g':
+    case 'c':
       sendCommand("G01 Y" + -distance/2 + " X" + distance/2);
       break;
 
     case 'y':
-      sendCommand("G02 X2 Y0 R2");
+      sendCommand("G01 Y" + distance/2);
       break;
-    case 'u':
-      sendCommand("G01 Y" + distance/2 + " X" + distance/2);
+    case 'g':
+      sendCommand("G01 X-" + distance/2);
       break;
     case 'h':
-      sendCommand("G01 Y" + -distance/2 + " X" + -distance/2);
+      sendCommand("G01 Y-" + distance/2);
       break;
     case 'j':
-      sendCommand("G01 Y" + -distance/2 + " X" + distance/2);
+      sendCommand("G01 X" + distance/2);
+      break;
+
+    case 't':
+      sendCommand("G01 Y" + distance/4 + " X" + -distance/4);
+      break;
+    case 'u':
+      sendCommand("G01 Y" + distance/4 + " X" + distance/4);
+      break;
+    case 'v':
+      sendCommand("G01 Y" + -distance/4 + " X" + -distance/4);
+      break;
+    case 'm':
+      sendCommand("G01 Y" + -distance/4 + " X" + distance/4);
       break;
 
     case 'o':
       //should not be needed anymore, but just in case.
       sendCommand("G91");
       break;
+
     }
   } else {
     String jsonKey = "" + key;
@@ -295,6 +320,9 @@ void keyPressed() {
       }
     }
   }
+}
+
+public void debugInfo() {
 }
 
 public void lettersToSend(String keyCommandos) {
