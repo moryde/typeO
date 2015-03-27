@@ -21,12 +21,17 @@ JSONObject charecters;
 JSONObject sprites;
 
 float distance = 1.0;
+float polygonizerAngle = 1.0;
 
 ControlP5 cp5;
 RSVG svg;
 Button record;
 Toggle edit;
 Textfield lettersToSend;
+
+Slider polygonizerAngleSlider;
+Button renderShape;
+Button printShape;
 
 DropdownList serialDL;
 String[] serialDevices;
@@ -35,11 +40,14 @@ Serial gcodeMachine;
 
 void setup() {
   
-    size(1000,1000);
-    frameRate( 5 );    
-    RG.init(this);
-    
-    shp = RG.loadShape("ad_both.svg");
+  size(1000,1000);
+  frameRate( 5 );
+  RG.init(this);
+  RG.setPolygonizer(RG.ADAPTATIVE);
+  
+  shp = RG.loadShape("logo.svg");
+  polyshp = RG.polygonize(shp);
+
   
   if (configFile.exists()) {
     config = new JSONObject(createReader(configFile));
@@ -154,30 +162,34 @@ void setup() {
       .setValue(10)
       .setRange(0, 30)
         ;
+        
+  polygonizerAngleSlider = cp5.addSlider("polygonizerAngleSlider")
+    .setPosition(20, 130)
+      .setValue(polygonizerAngle)
+      .setRange(0, 3.14/2)
+        ;
+        
+  renderShape = cp5.addButton("renderShape");
+  renderShape.setPosition(20, 150);
+  renderShape.setSize(50, 20);
+  renderShape.setWidth(100);
+  renderShape.captionLabel().set("Render shape");
+  
+  printShape = cp5.addButton("printShape");
+  printShape.setPosition(130, 150);
+  printShape.setSize(50, 20);
+  printShape.setWidth(100);
+  printShape.captionLabel().set("Print shape");
 }
 
 void draw() {
   background(0); // Set background to black
 
-    background(255);
-
-  // We decided the separation between the polygon points dependent of the mouseX
-  float pointSeparation = map(constrain(mouseX, 100, width-100), 100, width-100, 5, 200);
-
-  // We create the polygonized version
-  RG.setPolygonizer(RG.UNIFORMLENGTH);
-  RG.setPolygonizerLength(pointSeparation);
-
-  polyshp = RG.polygonize(shp);
-  polyshp.scale(0.1);
-  // We move ourselves to the mouse position
-  translate(mouseX, mouseY);
-
-  // We draw the polygonized group with the SVG styles
-  RG.shape(polyshp);
+  background(255);
   
+  RG.setPolygonizerAngle(polygonizerAngle);
   
-
+  polyshp.draw();
 }
 
 void populateSerialSelect() {
@@ -241,6 +253,10 @@ void controlEvent(ControlEvent event) {
       } else {
         startRecording();
       }
+    }
+    
+    if (event.getController().getName().equals("polygonizerAngleSlider")) {
+      polygonizerAngle = event.getController().getValue();
     }
   }
 }
@@ -379,6 +395,50 @@ void startRecording() {
   record.captionLabel().set("Recording...");
 }
 
+void renderShape() {
+  polyshp.translate(-200, -200);
+  polyshp.scale(0.5);
+  
+  RPoint[] points = polyshp.getPoints();
+  
+  if(points != null){
+    noFill();
+    stroke(0,200,0);
+    beginShape();
+    for(int i=0; i<points.length; i++){
+      vertex(points[i].x, points[i].y);
+    }
+    endShape();
+  
+    fill(0);
+    stroke(0);
+    for(int i=0; i<points.length; i++){
+      ellipse(points[i].x, points[i].y,5,5);  
+    }
+  }
+}
+
+void printShape() {
+  
+  RPoint[] points = polyshp.getPoints();
+
+  if(points != null){
+    ArrayList<String> shapeGcode = new ArrayList<String>();
+    shapeGcode.add("G90");
+    
+    for(int i=0; i<points.length; i++){
+      shapeGcode.add("G01 X" + points[i].x + " Y" + points[i].y);
+    }
+    
+    for (int i = 0; i < shapeGcode.size(); i++) {
+      println(shapeGcode.get(i));
+      sendCommand(shapeGcode.get(i));
+    }
+  } else {
+    println("No points to print :<");
+  }
+}
+
 void sendCommand(String cmd) {
   String withNl = cmd + '\n';
   gcodeMachine.write(withNl);
@@ -393,11 +453,23 @@ void readOk() {
   delay(100);
   String readData = gcodeMachine.readStringUntil('\n');
   
-  println(readData);
-  if (readData != null && readData == "ok") {
-    println("recieved ok");
+  if (readData != null) {
+    readData = readData.trim();  
+    if (readData.equals("ok")) {
+      println("Recieved ok");
+    } else {
+      println("Recieved: " + readData);
+    }
   } else {
-    println("Other than OK" + readData);
+    println("Got nothing, waiting...");
+    while (true) {
+      delay(75);
+      if (gcodeMachine.available() > 0) {
+        break;
+      } 
+    }
+    readOk();
   }
 }
+
 
