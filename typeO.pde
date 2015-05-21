@@ -33,19 +33,21 @@ Slider polygonizerAngleSlider;
 Button renderShape;
 Button printShape;
 
+float currentPositionA;
+float currentPositionB;
+
 DropdownList serialDL;
 String[] serialDevices;
 
 Serial gcodeMachine;
 
 void setup() {
-  
   size(1000,1000);
   frameRate( 5 );
   RG.init(this);
   RG.setPolygonizer(RG.ADAPTATIVE);
   
-  shp = RG.loadShape("logo.svg");
+  shp = RG.loadShape("logo2.svg");
   polyshp = RG.polygonize(shp);
 
   
@@ -86,9 +88,6 @@ void setup() {
 
     sprites = new JSONObject();
   }
-
-
-
 
   textFont(createFont("Georgia", 36));
   textSize(14);
@@ -132,12 +131,20 @@ void setup() {
   record.setWidth(100);
   record.captionLabel().set("Record");
 
+  Group g1 = cp5.addGroup("g1")
+                .setPosition(100,100)
+                .setBackgroundHeight(100)
+                .setBackgroundColor(color(255,50))
+                ;
+   
+
   cp5.addTextfield("drawSprite")
     .setPosition(225, 100)
       .setSize(200, 20)
         .setFocus(true)
           .setColor(color(255, 0, 0))
-            .setCaptionLabel("Sprite to play");
+            .setCaptionLabel("Sprite to play")
+              .setGroup(g1);
   ;
 
 
@@ -146,7 +153,8 @@ void setup() {
       .setSize(200, 20)
         .setFocus(true)
           .setColor(color(255, 0, 0))
-            .setCaptionLabel("Key to record");
+            .setCaptionLabel("Key to record")
+              .setGroup(g1);
   ;
 
   lettersToSend = cp5.addTextfield("lettersToSend")
@@ -154,7 +162,8 @@ void setup() {
       .setSize(200, 20)
         .setColor(color(255, 0, 0))
           .setFont(createFont("arial", 12))
-            .setCaptionLabel("Letters to write...");
+            .setCaptionLabel("Letters to write...")
+              .setGroup(g1);
   ;
 
   cp5.addSlider("changeGridSize")
@@ -185,7 +194,7 @@ void setup() {
 void draw() {
   background(0); // Set background to black
 
-  background(255);
+  //background(255);
   
   RG.setPolygonizerAngle(polygonizerAngle);
   
@@ -269,6 +278,8 @@ void keyPressed() {
 
   if (editMode) {
     switch(key) {
+         
+      
     case 'w':
       sendCommand("G01 Y" + distance);
       break;
