@@ -106,55 +106,45 @@ void setup() {
     gridSize1.setPosition(200, 200);
 
   edit = cp5.addToggle("toggleEdit");
-  edit.setPosition(130, 60);
+  edit.setPosition(420, 40);
   edit.setSize(100, 20);
   edit.captionLabel().set("Typewriter mode");
   edit.setValue(editMode);
   edit.setMode(ControlP5.SWITCH);
 
   record = cp5.addButton("record");
-  record.setPosition(20, 60);
+  record.setPosition(420, 10);
   record.setSize(50, 20);
   record.setWidth(100);
   record.captionLabel().set("Record");
 
-  Group g1 = cp5.addGroup("g1")
-                .setPosition(100,100)
-                .setBackgroundHeight(100)
-                .setBackgroundColor(color(255,50))
-                ;
-   
-
-  cp5.addTextfield("drawSprite")
-    .setPosition(225, 100)
-      .setSize(200, 20)
-        .setFocus(true)
-          .setColor(color(255, 0, 0))
-            .setCaptionLabel("Sprite to play")
-              .setGroup(g1);
-  ;
-
 
   cp5.addTextfield("keyToSave")
-    .setPosition(20, 100)
+    .setPosition(10, 90)
       .setSize(200, 20)
         .setFocus(true)
           .setColor(color(255, 0, 0))
             .setCaptionLabel("Key to record")
-              .setGroup(g1);
+  ;   
+
+  cp5.addTextfield("drawSprite")
+    .setPosition(220, 90)
+      .setSize(200, 20)
+        .setFocus(true)
+          .setColor(color(255, 0, 0))
+            .setCaptionLabel("Sprite to play")
   ;
 
   lettersToSend = cp5.addTextfield("lettersToSend")
-    .setPosition(430, 100)
+    .setPosition(430, 90)
       .setSize(200, 20)
         .setColor(color(255, 0, 0))
           .setFont(createFont("arial", 12))
             .setCaptionLabel("Letters to write...")
-              .setGroup(g1);
   ;
 
   cp5.addSlider("changeGridSize")
-    .setPosition(300, 80)
+    .setPosition(10, 60)
       .setValue(10)
       .setRange(0, 30)
         ;

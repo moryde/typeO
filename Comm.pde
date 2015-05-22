@@ -5,22 +5,21 @@ class Comm {
   private DropdownList serialDL;
 
   public Comm(int uiX, int uiY) {
-    Group g = cp5.addGroup("comm");
-    g.setPosition(uiX, uiY);
+    Group g = cp5.addGroup("Serial Settings");
+    g.setPosition(10,20);
     g.setBackgroundHeight(100);
+    g.setSize(400,30);
     g.setBackgroundColor(color(255, 50));
 
     Button serialRefresh = cp5.addButton("serialRefresh");
     serialRefresh.setGroup(g);
-    serialRefresh.setPosition(20, 20);
+    serialRefresh.setPosition(10,10);
     serialRefresh.setWidth(100);
     serialRefresh.captionLabel().set("Refresh serial list");
     serialRefresh.addListener(new ControlListener() {
       private Comm c;
       
-      public BC(Comm c) {
-        this.c = c;
-      }
+
       
       public void controlEvent(ControlEvent e) {
         println("LOL");
@@ -30,10 +29,10 @@ class Comm {
 
     this.serialDL = cp5.addDropdownList("serialSelect");
     this.serialDL.setGroup(g);
-    this.serialDL.setPosition(130, 40);
+    this.serialDL.setPosition(110, 25);
     this.serialDL.setSize(250, 250);
     this.serialDL.setBackgroundColor(color(190));
-    this.serialDL.setItemHeight(20);
+    this.serialDL.setItemHeight(15);
     this.serialDL.setBarHeight(15);
     this.serialDL.captionLabel().set("Select serial");
     this.serialDL.captionLabel().style().marginTop = 3;
