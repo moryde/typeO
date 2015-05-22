@@ -23,7 +23,7 @@ JSONObject sprites;
 float distance = 1.0;
 float polygonizerAngle = 1.0;
 
-ControlP5 cp5;
+
 RSVG svg;
 Button record;
 Toggle edit;
@@ -36,19 +36,26 @@ Button printShape;
 float currentPositionA;
 float currentPositionB;
 
-DropdownList serialDL;
-String[] serialDevices;
-
 Serial gcodeMachine;
 
+ControlP5 cp5;
+Comm comm;
+
 void setup() {
+  cp5 = new ControlP5(this);
+  
+  comm = new Comm(200,300);
+  
   size(1000,1000);
   frameRate( 5 );
   RG.init(this);
   RG.setPolygonizer(RG.ADAPTATIVE);
   
-  shp = RG.loadShape("logo2.svg");
+  shp = RG.loadShape("50x50square.svg");
+
   polyshp = RG.polygonize(shp);
+  polyshp.translate(20, 250);
+  //polyshp.scale(0.5);
 
   
   if (configFile.exists()) {
@@ -56,11 +63,11 @@ void setup() {
     println("Got config file");
     if (config.hasKey("serialDevice")) {
       String loadedSerial = config.getString("serialDevice");
-      serialDevices = Serial.list();
+      comm.serialDevices = Serial.list();
 
       boolean foundDevice = false;
-      for (int i = 0; i < serialDevices.length; i++) {
-        if (loadedSerial.equals(serialDevices[i])) {
+      for (int i = 0; i < comm.serialDevices.length; i++) {
+        if (loadedSerial.equals(comm.serialDevices[i])) {
           foundDevice = true;
         }
       }
@@ -92,31 +99,11 @@ void setup() {
   textFont(createFont("Georgia", 36));
   textSize(14);
 
-  cp5 = new ControlP5(this);
+  
   int labels = color(0);
   
   Button gridSize1 = cp5.addButton("debugInfo");
     gridSize1.setPosition(200, 200);
-
-
-  Button serialRefresh = cp5.addButton("serialRefresh");
-  serialRefresh.setPosition(20, 20);
-  serialRefresh.setWidth(100);
-  serialRefresh.captionLabel().set("Refresh serial list");
-
-  serialDL = cp5.addDropdownList("serialSelect");
-  serialDL.setPosition(130, 40);
-  serialDL.setSize(250, 250);
-  serialDL.setBackgroundColor(color(190));
-  serialDL.setItemHeight(20);
-  serialDL.setBarHeight(15);
-  serialDL.captionLabel().set("Select serial");
-  serialDL.captionLabel().style().marginTop = 3;
-  serialDL.captionLabel().style().marginLeft = 3;
-  serialDL.valueLabel().style().marginTop = 3;
-  serialDL.setColorBackground(color(60));
-  serialDL.setColorActive(color(255, 128));
-  populateSerialSelect();
 
   edit = cp5.addToggle("toggleEdit");
   edit.setPosition(130, 60);
@@ -201,14 +188,6 @@ void draw() {
   polyshp.draw();
 }
 
-void populateSerialSelect() {
-  serialDL.clear();
-  serialDevices = Serial.list();
-  for (int i = 0; i < serialDevices.length; i++) {
-    serialDL.addItem(serialDevices[i], i);
-  }
-}
-
 void setSerial(String devicePath) {
   gcodeMachine = new Serial(this, devicePath, 115200);
 
@@ -236,14 +215,10 @@ void controlEvent(ControlEvent event) {
     if (event.getGroup().getName().equals("serialSelect")) {
       // Serial selected
       int serialIndex = int(event.getGroup().getValue());
-      setSerial(serialDevices[serialIndex]);
+      setSerial(comm.serialDevices[serialIndex]);
     }
   } else if (event.isController()) {
     println("event from controller : "+event.getController().getValue()+" from "+event.getController());
-
-    if (event.getController().getName().equals("serialRefresh")) {
-      populateSerialSelect();
-    }
 
     if (event.getController().getName().equals("toggleEdit")) {
       float value = event.getController().getValue();
@@ -407,9 +382,6 @@ void startRecording() {
 }
 
 void renderShape() {
-  polyshp.translate(-200, -200);
-  polyshp.scale(0.5);
-  
   RPoint[] points = polyshp.getPoints();
   
   if(points != null){
