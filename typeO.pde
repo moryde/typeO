@@ -33,10 +33,15 @@ Slider polygonizerAngleSlider;
 Button renderShape;
 Button printShape;
 
-float currentPositionA;
-float currentPositionB;
+float polarMotorDistance = 450;
+float currentLengthA;
+float currentLengthB;
+float currentPositionX;
+float currentPositionY;
 
 Serial gcodeMachine;
+
+boolean polarMode = false;
 
 ControlP5 cp5;
 Comm comm;
@@ -166,6 +171,13 @@ void setup() {
   printShape.setSize(50, 20);
   printShape.setWidth(100);
   printShape.captionLabel().set("Print shape");
+  
+  Toggle polarToggle = cp5.addToggle("polarToggle");
+  polarToggle.setPosition(530, 40);
+  polarToggle.setSize(100, 20);
+  polarToggle.captionLabel().set("Polar mode");
+  polarToggle.setValue(polarMode);
+  polarToggle.setMode(ControlP5.SWITCH);
 }
 
 void draw() {
@@ -243,19 +255,46 @@ void keyPressed() {
 
   if (editMode) {
     switch(key) {
-         
       
     case 'w':
-      sendCommand("G01 Y" + distance);
+      if (polarMode) {
+        float newA = polarMotorALength(currentPositionX, currentPositionY - distance);
+        float newB = polarMotorBLength(currentPositionX, currentPositionY - distance);
+        sendCommand("G01 X" + (newA - currentLengthA) + " Y" + (newB - currentLengthB));
+        currentPositionY -= distance;
+      } else {
+        sendCommand("G01 Y" + distance);
+      }
       break;
     case 'a':
-      sendCommand("G01 X-" + distance);
+      if (polarMode) {
+        float newA = polarMotorALength(currentPositionX - distance, currentPositionY);
+        float newB = polarMotorBLength(currentPositionX - distance, currentPositionY);
+        sendCommand("G01 X-" + (newA - currentLengthA) + " Y" + (newB - currentLengthB));
+        currentPositionX -= distance;
+      } else {
+        sendCommand("G01 X-" + distance);
+      }
       break;
     case 's':
-      sendCommand("G01 Y-" + distance);
+    if (polarMode) {
+        float newA = polarMotorALength(currentPositionX, currentPositionY + distance);
+        float newB = polarMotorBLength(currentPositionX, currentPositionY + distance);
+        sendCommand("G01 X" + (newA - currentLengthA) + " Y" + (newB - currentLengthB));
+        currentPositionY += distance;
+      } else {
+        sendCommand("G01 Y-" + distance);
+      }
       break;
     case 'd':
-      sendCommand("G01 X" + distance);
+    if (polarMode) {
+        float newA = polarMotorALength(currentPositionX + distance, currentPositionY);
+        float newB = polarMotorBLength(currentPositionX + distance, currentPositionY);
+        sendCommand("G01 X" + (newA - currentLengthA) + " Y-" + (newB - currentLengthB));
+        currentPositionX -= distance;
+      } else {
+        sendCommand("G01 X" + distance);
+      }
       break;
 
     case 'q':
@@ -445,4 +484,23 @@ void readOk() {
   }
 }
 
+void polarToggle() {
+  if (!polarMode) {
+    float length = sqrt(sq(polarMotorDistance/2) + sq(polarMotorDistance/2));
+    currentLengthA = length;
+    currentLengthB = length;
+    currentPositionX = polarMotorDistance/2;
+    currentPositionY = polarMotorDistance/2;
+  }
+  
+  polarMode = !polarMode;
+}
+
+float polarMotorALength(float x, float y) {
+  return sqrt(sq(x) + sq(y));
+}
+
+float polarMotorBLength(float x, float y) {
+  return sqrt(sq(polarMotorDistance - x) + sq(y));
+}
 
